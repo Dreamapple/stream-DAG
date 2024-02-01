@@ -187,15 +187,11 @@ int paralize_exe() {
     // g.dump("./graph.json");
     // g2.load("./graph.json");
 
-    
-
     auto t1 = std::chrono::high_resolution_clock::now();
     bthread_list_t list;
     bthread_list_init(&list, FLAGS_loop_cnt, 0);
     for (int i = 0; i < FLAGS_loop_cnt; i++) {
-        bthread_t tid;
-        bthread_start_background(&tid, nullptr, [](void* arg) ->void* {
-            StreamGraph& g = *(StreamGraph*)arg;
+        BThread bthrd([&g] {
             BaseContext ctx;
             BthreadExecutor executor;
             ctx.enable_trace(FLAGS_trace);
@@ -205,10 +201,8 @@ int paralize_exe() {
                 return nullptr;
             }
             return nullptr;
-        }, &g);
-
-        bthread_list_add(&list, tid);
-
+        });
+        bthread_list_add(&list, bthrd.get_tid());
     }
 
     bthread_list_join(&list);

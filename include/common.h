@@ -11,7 +11,7 @@
 #include <atomic>
 #include <fstream>
 #include <nlohmann/json.hpp>
-
+#include "brpc_utils.h"
 
 namespace stream_dag {
     
@@ -33,6 +33,7 @@ public:
     int64_t start_time=0;
     int64_t stop_time=0;
     Status status;
+    BThread bthrd;
 
     friend class BaseNode;
 
@@ -109,18 +110,6 @@ public:
     std::any& get_input(const std::string& name) {
         std::string output_name = input_map_.at(name);
         return get_output(output_name);
-    }
-
-    void set_bthread_id(BaseNode* node, bthread_t bid) {
-        bthread_id_map_[node] = bid;
-    }
-
-    bthread_t& get_bthread_id(BaseNode* node) {
-        return bthread_id_map_[node];
-    }
-
-    std::unordered_map<BaseNode*, bthread_t>& get_bhtread_id_map() {
-        return bthread_id_map_;
     }
 
     void enable_trace(bool enable=true) {

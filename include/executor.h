@@ -1,7 +1,7 @@
 #pragma once
 #include "butil/status.h"
 #include "bthread/bthread.h"
-
+#include "brpc_utils.h"
 #include "graph.h"
 
 namespace stream_dag {
@@ -44,26 +44,21 @@ public:
         ctx.running_cnt.store(g.list_node().size());
 
         for (BaseNode* node: g.list_node()) {
-            bthread_t& bid = ctx.get_bthread_id(node);
+            RunningNodeInfo& call_args = ctx.nodes_map_.at(node->name());
 
-            void *args = &ctx.nodes_map_.at(node->name());
+            call_args.bthrd = BThread([&call_args] {
+                BaseNode& node = call_args.node;
+                BaseContext& ctx = call_args.ctx;
 
-            bthread_start_background(&bid, nullptr, [](void* args) ->void* {
-                RunningNodeInfo* call_args = (RunningNodeInfo*)args;
-                BaseNode& node = call_args->node;
-                BaseContext& ctx = call_args->ctx;
-                call_args->start_time = butil::gettimeofday_us();
-                Status status = node.base_execute(ctx);
-                call_args->status = status;
-                call_args->stop_time = butil::gettimeofday_us();
+                call_args.start_time = butil::gettimeofday_us();
+                call_args.status = node.base_execute(ctx);
+                call_args.stop_time = butil::gettimeofday_us();
 
                 ctx.running_cnt--;
                 if (ctx.running_cnt.load() == 0) {
-                    call_args->cond.notify_one();
+                    call_args.cond.notify_one();
                 }
-
-                return nullptr;
-            }, args);
+            });
         }
         
 
@@ -90,8 +85,9 @@ public:
             }
         }
         
-        for (auto [node, bid]: ctx.get_bhtread_id_map()) {
-            int join_code = bthread_join(bid, nullptr);
+        for (BaseNode* node: g.list_node()) {
+            RunningNodeInfo& call_args = ctx.nodes_map_.at(node->name());
+            int join_code = call_args.bthrd.join();
             if (join_code !=0) {
                 printf("Internal error bthread join failed!");
                 return Status(-1, "Internal error bthread join failed");
