@@ -4,7 +4,7 @@
 #include "node.h"
 #include "executor.h"
 #include "graph.h"
-#include "utils.h"
+#include "factory.h"
 #include "when_any.h"
 
 namespace stream_dag {

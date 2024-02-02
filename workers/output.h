@@ -1,6 +1,6 @@
 #pragma once
 #include "stream-dag.h"
-
+#include <tuple>
 using namespace stream_dag;
 
 
@@ -54,19 +54,10 @@ public:
         return Status::OK();
     }
 
-    INPUT(presafety, Stream<SafetyStatus>);
-    INPUT(llm_stream, Stream<ChatResponse>);
-    OUTPUT(out, Stream<Response>);
-
-    // 下面是生成的代码
-    using BaseNode::BaseNode;
-    Status execute(BaseContext& ctx) {
-        // auto& presafety_ = ctx.get_input(presafety);
-        auto& presafety_ = ctx.get(OutputNode::presafety);
-        auto& llm_stream_ = ctx.get(OutputNode::llm_stream);
-        auto& out_ = ctx.get(OutputNode::out);
-        Status status = run(presafety_, llm_stream_, out_);
-        return status;
-    }
+    DECLARE_PARAMS (
+        INPUT(presafety, Stream<SafetyStatus>),
+        INPUT(llm_stream, Stream<ChatResponse>),
+        OUTPUT(out, Stream<Response>),
+    );
 };
 REGISTER_CLASS(OutputNode);

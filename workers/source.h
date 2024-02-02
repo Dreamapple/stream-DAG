@@ -18,14 +18,10 @@ public:
         start.append(Start{});
         return Status::OK();
     }
-    // 下面是生成的代码
-    using BaseNode::BaseNode;
-    Status execute(BaseContext& ctx) {
-        auto& input = ctx.get(Source::input);
-        Status status = run(input);
-        return status;
-    }
-    OUTPUT(input, Stream<Start>);
+
+    DECLARE_PARAMS(
+        OUTPUT(input, Stream<Start>)
+    )
 };
 
 REGISTER_CLASS(Source);

@@ -107,8 +107,10 @@ private:
     std::vector<std::shared_ptr<BaseDataWrapper>> outputs_;
 };
 
-#define INPUT(name, type) NodeInputWrppper<type>& name = *BaseNode::input<type>(#name);
-#define OUTPUT(name, type) NodeOutputWrppper<type>& name = *BaseNode::output<type>(#name);
-
+#define INPUT(name, type) name, NodeInputWrppper<type>&, *BaseNode::input<type>(#name)
+#define OUTPUT(name, type) name, NodeOutputWrppper<type>&, *BaseNode::output<type>(#name)
+#define GEN_RESULT(...) std::tuple<_MACRO_GET2_EVERY3_(__VA_ARGS__)> wrappers = std::tie(_MACRO_GET1_EVERY3_(__VA_ARGS__));
+#define DECLARE_PARAMS(...) _MACRO_GEN_PARAMS_(__VA_ARGS__)  GEN_RESULT(__VA_ARGS__) using BaseNode::BaseNode; \
+    Status execute(BaseContext& ctx) { return std::apply([this, &ctx](auto& ...args) { return run(ctx.get(args)...); }, wrappers);  }
 
 }

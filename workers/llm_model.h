@@ -39,16 +39,6 @@ public:
         return Status::OK();
     }
     
-    INPUT(req, Stream<ChatRequest>);
-    OUTPUT(rsp, Stream<ChatResponse>);
-
-    // 下面是生成的代码
-    using BaseNode::BaseNode;
-    Status execute(BaseContext& ctx) {
-        auto& req = ctx.get(LLMModel::req);
-        auto& rsp = ctx.get(LLMModel::rsp);
-        Status status = run(req, rsp);
-        return status;
-    }
+    DECLARE_PARAMS( INPUT(req, Stream<ChatRequest>), OUTPUT(rsp, Stream<ChatResponse>))
 };
 REGISTER_CLASS(LLMModel);
