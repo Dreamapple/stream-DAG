@@ -30,14 +30,14 @@ public:
     // 下面是生成的代码
     using BaseNode::BaseNode;
     Status execute(BaseContext& ctx) {
-        auto& start = ctx.get_input<Stream<Start>>(name(), "start");
-        auto& out = ctx.get_output<Stream<SafetyStatus>>(name(), "out");
+        auto& start = ctx.get(PreSafety::start);
+        auto& out = ctx.get(PreSafety::out);
         Status status = run(start, out);
         return status;
     }
 
-    ENGINE_INPUT(start, Start);
-    ENGINE_OUTPUT(out, SafetyStatus);
+    INPUT(start, Stream<Start>);
+    OUTPUT(out, Stream<SafetyStatus>);
 };
 
 REGISTER_CLASS(PreSafety);

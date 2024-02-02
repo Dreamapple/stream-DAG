@@ -47,6 +47,12 @@ public:
     }
 };
 
+template<class T>
+class NodeInputWrppper;
+
+template<class T>
+class NodeOutputWrppper;
+
 
 class BaseContext {
 public:
@@ -110,6 +116,16 @@ public:
     std::any& get_input(const std::string& name) {
         std::string output_name = input_map_.at(name);
         return get_output(output_name);
+    }
+
+    template <class T>
+    T& get(NodeInputWrppper<T>& wrapper) {
+        return get_input<T>(wrapper.fullname());
+    }
+
+    template <class T>
+    T& get(NodeOutputWrppper<T>& wrapper) {
+        return get_output<T>(wrapper.fullname());
     }
 
     void enable_trace(bool enable=true) {

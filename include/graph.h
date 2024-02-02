@@ -40,6 +40,12 @@ public:
         edge_[out->fullname()] = in->fullname();
     }
 
+    template <class T1, class T2>
+    void add_edge(NodeOutputWrppper<T1>& out, NodeInputWrppper<T2>& in) {
+        static_assert(std::is_same<T1, T2>::value, "type must be same");
+        edge_[out.fullname()] = in.fullname();
+    }
+
     void add_edge(const std::string& out, const std::string& in) {
         edge_[out] = in;
     }

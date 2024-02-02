@@ -21,11 +21,11 @@ public:
     // 下面是生成的代码
     using BaseNode::BaseNode;
     Status execute(BaseContext& ctx) {
-        auto& input = ctx.get_output<Stream<Start>>(name(), "input");
+        auto& input = ctx.get(Source::input);
         Status status = run(input);
         return status;
     }
-    ENGINE_OUTPUT(input, Start);
+    OUTPUT(input, Stream<Start>);
 };
 
 REGISTER_CLASS(Source);

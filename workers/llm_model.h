@@ -39,14 +39,14 @@ public:
         return Status::OK();
     }
     
-    ENGINE_INPUT(req, ChatRequest);
-    ENGINE_OUTPUT(rsp, ChatResponse);
+    INPUT(req, Stream<ChatRequest>);
+    OUTPUT(rsp, Stream<ChatResponse>);
 
     // 下面是生成的代码
     using BaseNode::BaseNode;
     Status execute(BaseContext& ctx) {
-        auto& req = ctx.get_input<Stream<ChatRequest>>(name(), "req");
-        auto& rsp = ctx.get_output<Stream<ChatResponse>>(name(), "rsp");
+        auto& req = ctx.get(LLMModel::req);
+        auto& rsp = ctx.get(LLMModel::rsp);
         Status status = run(req, rsp);
         return status;
     }

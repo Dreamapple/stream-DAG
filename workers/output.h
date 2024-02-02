@@ -54,17 +54,17 @@ public:
         return Status::OK();
     }
 
-    ENGINE_INPUT(presafety, SafetyStatus);
-    ENGINE_INPUT(llm_stream, ChatResponse);
-    ENGINE_OUTPUT(out, Response);
+    INPUT(presafety, Stream<SafetyStatus>);
+    INPUT(llm_stream, Stream<ChatResponse>);
+    OUTPUT(out, Stream<Response>);
 
     // 下面是生成的代码
     using BaseNode::BaseNode;
     Status execute(BaseContext& ctx) {
         // auto& presafety_ = ctx.get_input(presafety);
-        auto& presafety_ = ctx.get_input<Stream<SafetyStatus>>(name(), "presafety");
-        auto& llm_stream_ = ctx.get_input<Stream<ChatResponse>>(name(), "llm_stream");
-        auto& out_ = ctx.get_output<Stream<Response>>(name(), "out");
+        auto& presafety_ = ctx.get(OutputNode::presafety);
+        auto& llm_stream_ = ctx.get(OutputNode::llm_stream);
+        auto& out_ = ctx.get(OutputNode::out);
         Status status = run(presafety_, llm_stream_, out_);
         return status;
     }

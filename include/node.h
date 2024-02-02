@@ -24,7 +24,6 @@ private:
     std::string fullname_;
 };
 
-
 template<class T>
 class DataWrppper : public BaseDataWrapper {
 public:
@@ -32,13 +31,25 @@ public:
     using BaseDataWrapper::BaseDataWrapper;
 
     std::any create(BaseContext& ctx, const std::string& data_name) {
-        return std::make_shared<Stream<T>>(ctx, data_name, typeid(T).name());
+        return std::make_shared<T>(ctx, data_name, typeid(T).name());
     }
 
     void half_close(std::any &data) {
-        auto stream = std::any_cast<std::shared_ptr<Stream<T>>>(data);
+        auto stream = std::any_cast<std::shared_ptr<T>>(data);
         stream->half_close();
     }
+};
+
+template<class T>
+class NodeInputWrppper : public DataWrppper<T> {
+    using data_type = T;
+    using DataWrppper<T>::DataWrppper;
+};
+
+template<class T>
+class NodeOutputWrppper : public DataWrppper<T> {
+    using data_type = T;
+    using DataWrppper<T>::DataWrppper;
 };
 
 class BaseNode {
@@ -49,7 +60,7 @@ public:
     // 这里初始化的是 ctx 的值  而不是BaseNode自身
     virtual Status init_ctx(BaseContext& ctx) {
         ctx.init_node(name(), this);
-        for (auto& output : output_) {
+        for (auto& output : outputs_) {
             ctx.init_data(output->fullname(), output->create(ctx, output->fullname()));
         }
         return Status::OK();
@@ -71,35 +82,33 @@ public:
     template<class ...T> Status run(T ...inouts);
     
     template <class T>
-    std::shared_ptr<DataWrppper<T>> input(const std::string& name) {
-        auto wrapper = std::make_shared<DataWrppper<T>>(name_, name); 
+    std::shared_ptr<NodeInputWrppper<T>> input(const std::string& name) {
+        auto wrapper = std::make_shared<NodeInputWrppper<T>>(name_, name); 
         inputs_.push_back(wrapper);
         return wrapper;
     }
 
     template <class T>
-    std::shared_ptr<DataWrppper<T>> output(const std::string& name) {
-        auto wrapper = std::make_shared<DataWrppper<T>>(name_, name); 
-        output_.push_back(wrapper);
+    std::shared_ptr<NodeOutputWrppper<T>> output(const std::string& name) {
+        auto wrapper = std::make_shared<NodeOutputWrppper<T>>(name_, name); 
+        outputs_.push_back(wrapper);
         return wrapper;
     }
 
     std::string name() { return name_; };
     std::string type() { return type_; };
-    std::vector<std::shared_ptr<BaseDataWrapper>> list_input() { return inputs_; }
-    std::vector<std::shared_ptr<BaseDataWrapper>> list_output() { return output_; }
+    std::vector<std::shared_ptr<BaseDataWrapper>> list_input() const { return inputs_; }
+    std::vector<std::shared_ptr<BaseDataWrapper>> list_output() const { return outputs_; }
 
 private:
     std::string name_, type_;
 
     std::vector<std::shared_ptr<BaseDataWrapper>> inputs_;
-    std::vector<std::shared_ptr<BaseDataWrapper>> output_;
+    std::vector<std::shared_ptr<BaseDataWrapper>> outputs_;
 };
 
-// #define ENGINE_INPUT(name, type) std::shared_ptr<BaseDataWrapper> name = BaseNode::input<type>(#name);
-// #define ENGINE_OUTPUT(name, type) std::shared_ptr<BaseDataWrapper> name = BaseNode::output<type>(#name);
-#define ENGINE_INPUT(name, type) std::shared_ptr<DataWrppper<type>> name = BaseNode::input<type>(#name);
-#define ENGINE_OUTPUT(name, type) std::shared_ptr<DataWrppper<type>> name = BaseNode::output<type>(#name);
+#define INPUT(name, type) NodeInputWrppper<type>& name = *BaseNode::input<type>(#name);
+#define OUTPUT(name, type) NodeOutputWrppper<type>& name = *BaseNode::output<type>(#name);
 
 
 }
