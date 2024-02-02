@@ -36,9 +36,11 @@ public:
         return Status::OK();
     }
 
-    ENGINE_INPUT(presafety, SafetyStatus);
-    ENGINE_INPUT(llm_stream, ChatResponse);
-    ENGINE_OUTPUT(out, Response);
+    DECLARE_PARAMS (
+        INPUT(presafety, Stream<SafetyStatus>),
+        INPUT(llm_stream, Stream<ChatResponse>),
+        OUTPUT(out, Stream<Response>),
+    );
 };
 REGISTER_CLASS(OutputNode);
 ```
@@ -159,10 +161,11 @@ int main(int argc, char *argv[]) {
 | 并行执行 10000 次，10 线程，开启 trace | 共耗时2072ms 平均耗时0.207ms | `benchmark --paralize_exe  --loop_cnt 10000 --trace=false -bthread_concurrency=10` |
 
 ## 后续计划
-- 支持输入和输出为非 Stream 的节点
+- 支持输入和输出为非 Stream 的节点 √
 - 支持节点依赖而不是只有数据依赖
 - 支持通过声明名称同样的字段隐式自动依赖(放弃必须显式连接两个节点的依赖)
 - 支持 web 端可视化编排 DAG bpmn
 - 支持 lazy 模式创建节点和运行
 - 支持 Stream 多写多读
 - 支持子图、动态图、动态调用节点
+- 支持配置系统，每一个节点可以单独配置

@@ -50,21 +50,12 @@ public:
         }
         return Status::OK();
     }
-    INPUT(in, Stream<Start>);
-    OUTPUT(out1, Stream<Start>);
-    OUTPUT(out2, Stream<ChatRequest>);
 
-    // 下面是生成的代码
-    using BaseNode::BaseNode;
-    Status execute(BaseContext& ctx) {
-        auto& in = ctx.get(Split::in);
-        auto& out1 = ctx.get(Split::out1);
-        auto& out2 = ctx.get(Split::out2);
-        Status status = run(in, out1, out2);
-        return status;
-    }
-
-
+    DECLARE_PARAMS(
+        INPUT(in, Stream<Start>),
+        OUTPUT(out1, Stream<Start>),
+        OUTPUT(out2, Stream<ChatRequest>),
+    )
 };
 
 
