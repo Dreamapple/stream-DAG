@@ -22,30 +22,7 @@ using Status = butil::Status;
 class BaseNode;
 class BaseContext;
 
-struct RunningNodeInfo {
-public:
-    RunningNodeInfo(BaseContext& ctx_, BaseNode& node_, bthread::ConditionVariable& cond_) : ctx(ctx_), node(node_), cond(cond_) {} 
 
-    BaseContext& ctx;
-    BaseNode& node;
-    bthread::ConditionVariable& cond;
-
-    int64_t start_time=0;
-    int64_t stop_time=0;
-    Status status;
-    BThread bthrd;
-
-    friend class BaseNode;
-
-    json dump() {
-        json result;
-        result["start_time"] = start_time;
-        result["stop_time"] = stop_time;
-        result["status_code"] = status.error_code();
-        result["status_msg"] = status.error_str();
-        return result;
-    }
-};
 
 template<class T>
 class NodeInputWrppper;
@@ -69,7 +46,6 @@ public:
     }
 
     void init_node(const std::string& name, BaseNode* node) {
-        nodes_map_.emplace(name, RunningNodeInfo(*this, *node, cond_));
         trace_buf_["nodes"][name] = json::array();
     }
 
@@ -167,12 +143,12 @@ public:
     }
 
     // for executor
-    std::atomic_int running_cnt;
+    std::atomic_int running_cnt{0};
 
     // for notify
     bthread::ConditionVariable cond_;
 
-    std::unordered_map<std::string, RunningNodeInfo> nodes_map_;
+    
 
 private:
     std::unordered_map<std::string, std::string> input_map_;
@@ -187,6 +163,5 @@ private:
     json trace_buf_;
     bool enable_trace_ = false;
 };
-
 
 }

@@ -52,6 +52,7 @@ class NodeOutputWrppper : public DataWrppper<T> {
     using DataWrppper<T>::DataWrppper;
 };
 
+
 class BaseNode {
 public:
     BaseNode(const std::string& name, const std::string& type) : name_(name), type_(type) {}
@@ -64,17 +65,6 @@ public:
             ctx.init_data(output->fullname(), output->create(ctx, output->fullname()));
         }
         return Status::OK();
-    }
-
-    Status base_execute(BaseContext& ctx) {
-        ctx.trace_node(name(), type(), "before_execute", json());
-        Status status = execute(ctx);
-        ctx.trace_node(name(), type(), "after_execute", json({{"status", status.error_code()}, {"msg", status.error_str()}}));
-
-        for (auto& out: list_output()) {
-            out->half_close(ctx.get_output(out->fullname()));
-        }
-        return status;
     }
 
     virtual Status execute(BaseContext& ctx) = 0;
@@ -100,12 +90,32 @@ public:
     std::vector<std::shared_ptr<BaseDataWrapper>> list_input() const { return inputs_; }
     std::vector<std::shared_ptr<BaseDataWrapper>> list_output() const { return outputs_; }
 
+    json to_json() {
+        json info;
+        info["name"] = name_;
+        info["type"] = type_;
+        for (auto data : inputs_) {
+            info["inputs"].push_back(data->fullname());
+        };
+        for (auto data : outputs_) {
+            info["outputs"].push_back(data->fullname());
+        }
+
+
+        return info;
+    }
+
+    std::function<bool(BaseContext&)> condition_, action_;
+
 private:
     std::string name_, type_;
 
+    // 边依赖
     std::vector<std::shared_ptr<BaseDataWrapper>> inputs_;
     std::vector<std::shared_ptr<BaseDataWrapper>> outputs_;
+
 };
+
 
 #define INPUT(name, type) name, NodeInputWrppper<type>&, *BaseNode::input<type>(#name)
 #define OUTPUT(name, type) name, NodeOutputWrppper<type>&, *BaseNode::output<type>(#name)

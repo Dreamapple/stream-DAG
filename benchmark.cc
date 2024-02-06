@@ -68,11 +68,20 @@ int only_graph() {
         PreSafety* safe_node = g.add_node<PreSafety>("safe_node");
         LLMModel* model_node = g.add_node<LLMModel>("model_node");
         OutputNode* output_node = g.add_node<OutputNode>("output_node");
-        g.add_edge(source->input, split->in);
-        g.add_edge(split->out1, safe_node->start);
-        g.add_edge(split->out2, model_node->req);
-        g.add_edge(safe_node->out, output_node->presafety);
-        g.add_edge(model_node->rsp, output_node->llm_stream);
+
+        // g.add_node_dep(split, source, ASYNC_DEPENTENCY);
+
+        class MyContext : public BaseContext {
+        public:
+            ChatRequest req;
+        };
+        // g.add_node_dep<MyContext>(output_node, {safe_node}, [](MyContext& ctx) -> bool { return ctx.req.msg.size() > 0; });
+
+        g.add_edge_dep(split->in, source->input);
+        g.add_edge_dep(safe_node->start, split->out1);
+        g.add_edge_dep(model_node->req, split->out2);
+        g.add_edge_dep(output_node->presafety, safe_node->out);
+        g.add_edge_dep(output_node->llm_stream, model_node->rsp);
     }
    
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -84,7 +93,6 @@ int only_graph() {
 
 int only_excute() {
     
-
     // 图编排，
     StreamGraph g, g2;
     Source* source = g.add_node<Source>("source_node");
@@ -170,6 +178,9 @@ int paralize_exe() {
     PreSafety* safe_node = g.add_node<PreSafety>("safe_node");
     LLMModel* model_node = g.add_node<LLMModel>("model_node");
     OutputNode* output_node = g.add_node<OutputNode>("output_node");
+
+    g.add_node_dep(output_node, {safe_node}, CONDITION( true ));
+
     g.add_edge(source->input, split->in);
     g.add_edge(split->out1, safe_node->start);
     g.add_edge(split->out2, model_node->req);
@@ -182,9 +193,9 @@ int paralize_exe() {
     bthread_list_t list;
     bthread_list_init(&list, FLAGS_loop_cnt, 0);
     for (int i = 0; i < FLAGS_loop_cnt; i++) {
-        BThread bthrd([&g] {
+        BThread bthrd([&g, i] {
             BaseContext ctx;
-            BthreadExecutor executor;
+            BthreadExecutor executor(std::to_string(i));
             ctx.enable_trace(FLAGS_trace);
             auto status = executor.run(g, ctx);
             if (!status.ok()) {
@@ -228,12 +239,16 @@ int main(int argc, char *argv[]) {
     PreSafety* safe_node = g.add_node<PreSafety>("safe_node");
     LLMModel* model_node = g.add_node<LLMModel>("model_node");
     OutputNode* output_node = g.add_node<OutputNode>("output_node");
+    
+    // g.add_node_dep(output_node, {safe_node}, DependentType::SYNC_DEPENTENCY, [](BaseContext& ctx) -> bool { return true; });
+    g.add_node_dep(output_node, {safe_node}, CONDITION( true ) );
+
     g.add_edge(source->input, split->in);
     g.add_edge(split->out1, safe_node->start);
     g.add_edge(split->out2, model_node->req);
     g.add_edge(safe_node->out, output_node->presafety);
     g.add_edge(model_node->rsp, output_node->llm_stream);
-    // g.dump("./graph.json");
+    g.dump("./graph.json");
     // g2.load("./graph.json");
 
     BthreadExecutor executor;
