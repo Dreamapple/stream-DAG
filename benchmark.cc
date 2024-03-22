@@ -8,7 +8,7 @@
 #include "include/stream-dag.h"
 
 #include <gflags/gflags.h>
-#include <fmt/format.h>
+// #include <fmt/format.h>
 
 
 #include "source.h"
@@ -120,9 +120,9 @@ int only_excute() {
             printf("run err: %s\n", status.error_cstr());
             return -1;
         }
-        if (FLAGS_dump) {
-            ctx.dump(fmt::format("running-{}.json", i));
-        }
+        // if (FLAGS_dump) {
+        //     ctx.dump(fmt::format("running-{}.json", i));
+        // }
     }
    
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -158,9 +158,9 @@ int both_run() {
             printf("run err: %s\n", status.error_cstr());
             return -1;
         }
-        if (FLAGS_dump) {
-            ctx.dump(fmt::format("running-{}.json", i));
-        }
+        // if (FLAGS_dump) {
+        //     ctx.dump(fmt::format("running-{}.json", i));
+        // }
     }
    
     auto t2 = std::chrono::high_resolution_clock::now();
@@ -262,9 +262,9 @@ int main(int argc, char *argv[]) {
             printf("run err: %s\n", status.error_cstr());
             return -1;
         }
-        if (FLAGS_dump) {
-            ctx.dump(fmt::format("running-{}.json", i));
-        }
+        // if (FLAGS_dump) {
+        //     ctx.dump(fmt::format("running-{}.json", i));
+        // }
     }
    
     auto t2 = std::chrono::high_resolution_clock::now();
