@@ -58,6 +58,8 @@ public:
         INPUT(presafety, Stream<SafetyStatus>),
         INPUT(llm_stream, Stream<ChatResponse>),
         OUTPUT(out, Stream<Response>),
+        // CONTEXT_DATA(count, int),
+        // GRAPH_DEPEND(pre, PreSafety),
     );
 };
 REGISTER_CLASS(OutputNode);

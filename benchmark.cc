@@ -57,7 +57,7 @@ public:
         OUTPUT(out2, Stream<ChatRequest>),
     )
 };
-
+REGISTER_CLASS(Split);
 
 int only_graph() {
     auto t1 = std::chrono::high_resolution_clock::now();    
@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
     g.add_edge(safe_node->out, output_node->presafety);
     g.add_edge(model_node->rsp, output_node->llm_stream);
     g.dump("./graph.json");
-    // g2.load("./graph.json");
+    g2.load("./graph.json");
 
     BthreadExecutor executor;
 
@@ -257,7 +257,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < FLAGS_loop_cnt; i++) {
         BaseContext ctx;
         ctx.enable_trace(FLAGS_trace);
-        auto status = executor.run(g, ctx);
+        auto status = executor.run(g2, ctx);
         if (!status.ok()) {
             printf("run err: %s\n", status.error_cstr());
             return -1;

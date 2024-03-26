@@ -34,6 +34,14 @@ public:
         return nullptr;
     }
 
+    static std::vector<std::string> GetRegisteredTypes() {
+        std::vector<std::string> types;
+        for (const auto& pair : GetRegistry()) {
+            types.push_back(pair.first);
+        }
+        return types;
+    }
+
     template<typename T>
     static void RegisterByName(const std::string& typeName) {
         auto it = GetRegistry().find(typeName);

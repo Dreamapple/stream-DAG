@@ -30,36 +30,22 @@ public:
             delete f;
             return nullptr;
         };
-        bthread_start_background(&tid_, nullptr, call_back, (void*)p_wrap_fn);
-        joinable_ = true;
+        bthread_start_background(&bthid_, nullptr, call_back, (void*)p_wrap_fn);
     }
 
     int join() {
-        if (joinable_) {
-            return bthread_join(tid_, NULL);
-            joinable_ = false;
+        if (bthid_ != INVALID_BTHREAD) {
+            return bthread_join(bthid_, NULL);
         }
         return -1;
     }
 
-    bool joinable() const noexcept {
-        return joinable_;
-    }
-
     bthread_t get_tid() {
-        return tid_;
-    }
-
-    void detach() {
-        // if (joinable_) {
-        //     bthread_detach(tid_);
-        //     joinable_ = false;
-        // }
+        return bthid_;
     }
 
 private:
-    bthread_t tid_;
-    bool joinable_ = false;
+    bthread_t bthid_ = INVALID_BTHREAD;
 };
 
 

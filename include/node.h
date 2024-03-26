@@ -52,13 +52,16 @@ class NodeOutputWrppper : public DataWrppper<T> {
     using DataWrppper<T>::DataWrppper;
 };
 
-
+// BaseNode 的设计思想是：
+//   作为”图“的描述，而不是作为”执行“的逻辑
+//   1. BaseNode 及子类实例化时不持有运行时的上下文 BaseContext; 只在调用 execute 接口时传入，实现更高层级的隔离。
+//   2. 节点的输入输出是 BaseDataWrapper 类型，描述输入和输出，而不是实例，方便静态编排。
 class BaseNode {
 public:
     BaseNode(const std::string& name, const std::string& type) : name_(name), type_(type) {}
     virtual ~BaseNode() = default;
 
-    // 这里初始化的是 ctx 的值  而不是BaseNode自身
+    // 这里初始化的是 ctx 的值  而不是BaseNode自身; TODO 把这部分代码移动到 ctx 中
     virtual Status init_ctx(BaseContext& ctx) {
         ctx.init_node(name(), this);
         for (auto& output : outputs_) {
@@ -85,7 +88,7 @@ public:
         return wrapper;
     }
 
-    std::string name() { return name_; };
+    std::string name() const { return name_; };
     std::string type() { return type_; };
     std::vector<std::shared_ptr<BaseDataWrapper>> list_input() const { return inputs_; }
     std::vector<std::shared_ptr<BaseDataWrapper>> list_output() const { return outputs_; }
