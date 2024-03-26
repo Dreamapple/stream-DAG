@@ -1,92 +1,172 @@
-# stream_dag
+# Stream-DAG 框架
+设计文档请参考 https://cq6qe6bvfr6.feishu.cn/docx/G4oTdOo5fol8k9x16hicdvrdncc
 
+## 项目简介
+当前业界的 DAG 框架，如 cpp-taskflow、cgraph等，都是在一个节点运行结束后运行下一个节点。
+然而大模型业务场景下，由于模型输出效率限制无法一次性输出全部结果，往往处理的模式是模型边输出边处理。
+大模型的特殊场景下，为了支持流程编排、业务逻辑解耦合、方便开发和调试等重要的主题，开发这个框架来更好支持业务迭代。
+为此，我们基于 brpc 开发了一个处理流式数据的 DAG 框架，支持以下功能：
+1. 支持节点输入输出**流式**数据，而不是一次性输出全部数据。
+2. 支持节点并行执行。
+3. 支持通过 web 界面查看 DAG 图、获取执行的 trace 信息。
+4. 支持 python 中调试
 
+## 快速开始
 
-## Getting started
+创建一个节点:
+```C++
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+class OutputNode : public BaseNode {
+public:
+    Status run(Stream<SafetyStatus>& presafety, Stream<ChatResponse>& llm_stream, Stream<Response>& out) {
+        while (true) {
+            auto [safe_data, llm_data] = when_any(presafety, llm_stream);
+            if (safe_data && safe_data->status == SafetyStatus::kBlock) {
+                out.append(Response("blocked!"));
+                return Status::OK();
+            } else if (llm_data) {
+                out.append(Response(llm_data->msg));
+                continue;
+            } else {
+                break;
+            }
+        }
+        out.append(Response("end"));
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+        return Status::OK();
+    }
 
-## Add your files
+    DECLARE_PARAMS (
+        INPUT(presafety, Stream<SafetyStatus>),
+        INPUT(llm_stream, Stream<ChatResponse>),
+        OUTPUT(out, Stream<Response>),
+    );
+};
+REGISTER_CLASS(OutputNode);
+```
+编排
+```json
+{
+    "edges": [
+        {
+            "from": "model_node/rsp",
+            "to": "output_node/llm_stream"
+        },
+        {
+            "from": "split_node/out2",
+            "to": "model_node/req"
+        },
+        {
+            "from": "split_node/out1",
+            "to": "safe_node/start"
+        },
+        {
+            "from": "source_node/input",
+            "to": "split_node/in"
+        },
+        {
+            "from": "safe_node/out",
+            "to": "output_node/presafety"
+        }
+    ],
+    "nodes": [
+        {
+            "name": "source_node",
+            "outputs": [
+                "source_node/input"
+            ],
+            "type": "6Source"
+        },
+        {
+            "inputs": [
+                "split_node/in"
+            ],
+            "name": "split_node",
+            "outputs": [
+                "split_node/out1",
+                "split_node/out2"
+            ],
+            "type": "5Split"
+        },
+        {
+            "inputs": [
+                "safe_node/start"
+            ],
+            "name": "safe_node",
+            "outputs": [
+                "safe_node/out"
+            ],
+            "type": "9PreSafety"
+        },
+        {
+            "inputs": [
+                "model_node/req"
+            ],
+            "name": "model_node",
+            "outputs": [
+                "model_node/rsp"
+            ],
+            "type": "8LLMModel"
+        },
+        {
+            "inputs": [
+                "output_node/presafety",
+                "output_node/llm_stream"
+            ],
+            "name": "output_node",
+            "outputs": [
+                "output_node/out"
+            ],
+            "type": "10OutputNode"
+        }
+    ]
+}
+```
+运行
+```C++
+#include "my_node.h"
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+int main(int argc, char *argv[]) {
+    auto t1 = std::chrono::high_resolution_clock::now();
+    // 加载
+    StreamGraph g;
+    g.load("./graph.json");
+
+    BaseContext ctx;
+    BthreadExecutor executor;
+    auto status = executor.run(g, ctx);
+
+    auto t2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double, std::milli> ms_double = t2 - t1;
+    printf("run fin cost %lfms \n", ms_double);
+    return 0;
+}
 
 ```
-cd existing_repo
-git remote add origin https://code.baichuan-inc.com/backend/stream_dag.git
-git branch -M main
-git push -uf origin main
-```
 
-## Integrate with your tools
+## 可视化结果
+运行时可以选择开启 trace。结果保存后可以在浏览器打开可视化 trace 结果.
+![Alt text](images/image.png)
 
-- [ ] [Set up project integrations](https://code.baichuan-inc.com/backend/stream_dag/-/settings/integrations)
+## Benchmark
+性能评测使用的图是上面的图。
 
-## Collaborate with your team
+| 测试场景 | 测试结果 | 命令和参数 |
+| --- | --- | --- |
+| 串行执行 10000 次，10 线程 | 共耗时2870ms 平均耗时0.287ms | `benchmark --both_run  --loop_cnt 10000 --trace=false -bthread_concurrency=10` |
+| 并行执行 10000 次，10 线程 | 共耗时543ms 平均耗时0.054ms | `benchmark --paralize_exe  --loop_cnt 10000 --trace=false -bthread_concurrency=10` |
+| 并行执行 10000 次，20 线程 | 共耗时280ms 平均耗时0.028ms | `benchmark --paralize_exe  --loop_cnt 10000 --trace=false -bthread_concurrency=20` |
+| 并行执行 10000 次，30 线程 | 共耗时246ms 平均耗时**0.025ms** | `benchmark --paralize_exe  --loop_cnt 10000 --trace=false -bthread_concurrency=30` |
+| 串行执行 10000 次，10 线程，开启 trace | 共耗时9091ms 平均耗时0.909ms | `benchmark --both_run  --loop_cnt 10000 --trace=true -bthread_concurrency=10` |
+| 并行执行 10000 次，10 线程，开启 trace | 共耗时2072ms 平均耗时0.207ms | `benchmark --paralize_exe  --loop_cnt 10000 --trace=false -bthread_concurrency=10` |
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+## 后续计划
+- 支持输入和输出为非 Stream 的节点 √
+- 支持节点依赖而不是只有数据依赖 √
+- 支持通过声明名称同样的字段隐式自动依赖(放弃必须显式连接两个节点的依赖)
+- 支持 lazy 模式创建节点和运行
+- 支持 Stream 多写多读
+- 支持子图、动态图、动态调用节点
+- 支持配置系统，每一个节点可以单独配置
+- 支持节点作为依赖，实现依赖注入
+- ? 支持 web 端可视化编排 DAG bpmn
