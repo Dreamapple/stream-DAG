@@ -8,7 +8,7 @@ namespace stream_dag {
 using json = nlohmann::json;
 
 struct HttpRequest {
-    std::string method;
+    std::string method = "GET";
     std::string url;
     std::map<std::string, std::string> params;
     std::map<std::string, std::string> headers;
@@ -16,6 +16,18 @@ struct HttpRequest {
 
     bool stream = false; // 流式读取数据
     int timeout_ms = 0; // 超时时间，单位ms
+
+    json to_json() {
+        json j;
+        j["method"] = method;
+        j["url"] = url;
+        j["params"] = params;
+        j["headers"] = headers;
+        j["data"] = data;
+        j["stream"] = stream;
+        j["timeout_ms"] = timeout_ms;
+        return j;
+    }
 };
 
 class HttpResponse {
@@ -23,6 +35,14 @@ public:
     int status_code;
     std::map<std::string, std::string> headers;
     json body;
+
+    json to_json() {
+        json j;
+        j["status_code"] = status_code;
+        j["headers"] = headers;
+        j["body"] = body;
+        return j;
+    }
 };
 
 class StreamHttpReader : public brpc::ProgressiveReader {
@@ -58,10 +78,15 @@ public:
         return (0 == chann_.Init(host.c_str(), lb.c_str(), &opt)) ? Status::OK() : Status(-1, "init channnel failed");
     }
 
-    Status run(InputData<HttpRequest>& request, OutputData<HttpResponse>& response, Stream<std::string>& body) {
+    Status run(Stream<HttpRequest>& request_, Stream<HttpResponse>& response_, Stream<std::string>& body) {
         // 这里面没有必要写异步任务
         // 直接同步执行, 阻塞时 brpc 会自动调度到其它bthread
         // 
+
+        HttpRequest requestdata, *request;
+        request_.read(requestdata);
+
+        request = &requestdata;
 
         brpc::HttpMethod method;
         if (request->method == "GET") {
@@ -105,6 +130,9 @@ public:
             cntl.ReadProgressiveAttachmentBy(new StreamHttpReader(body));
         }
 
+        HttpResponse responsedata, *response;
+        response = &responsedata;
+
         response->status_code = cntl.http_response().status_code();
         for (auto it=cntl.http_response().HeaderBegin(); it != cntl.http_response().HeaderEnd(); ++it) {
             response->headers[it->first] = it->second;
@@ -115,27 +143,16 @@ public:
             // 如果内容是 '\n\n'会不会 core?
             response->body = json::parse(cntl.response_attachment().to_string());
         }
+        response_.append(responsedata);
         return Status::OK();
     }
 
     DECLARE_PARAMS (
-        INPUT(request, InputData<HttpRequest>),
-        OUTPUT(response, OutputData<HttpResponse>),
+        INPUT(request_, Stream<HttpRequest>),
+        OUTPUT(response_, Stream<HttpResponse>),
         OUTPUT(body, Stream<std::string>),
-        // CONTEXT_DATA(count, int),
-        // GRAPH_DEPEND(pre, PreSafety),
     );
 
-NodeInputWrppper<InputData<HttpRequest>>& request = *BaseNode::input<InputData<HttpRequest>>("request");
-NodeOutputWrppper<OutputData<HttpResponse>>& response = *BaseNode::output<OutputData<HttpResponse>>("response");
-NodeOutputWrppper<Stream<std::string>>& body = *BaseNode::output<Stream<std::string>>("body"); 
-std::tuple<NodeInputWrppper<InputData<HttpRequest>>&, NodeOutputWrppper<OutputData<HttpResponse>>&, NodeOutputWrppper<Stream<std::string>>&> wrappers = std::tie(request, response, body); 
-using BaseNode::BaseNode; 
-Status execute(BaseContext& ctx) { 
-    return std::apply([this, &ctx](auto& ...args) { 
-        return run(ctx.get(args)...); 
-    }, wrappers); 
-}
 private:
     brpc::Channel chann_;
 

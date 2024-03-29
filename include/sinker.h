@@ -9,7 +9,7 @@
 #include "stream.h"
 #include <nlohmann/json.hpp>
 
-namespace stream_dag {
+namespace stream_dag_engine {
 
 template<class T>
 class SourceNode : public BaseNode {
