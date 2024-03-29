@@ -70,6 +70,22 @@ public:
         return Status::OK();
     }
 
+    // 初始化节点 这个函数用来在图中使用 子类重写 init 函数
+    // Status initialize(BaseContext& ctx, std::vector<std::string>& fullpath) {
+    //     return Status::OK();
+    // }
+
+    virtual Status init(json& option) {
+        json& sub_option = option["sub_workers"];
+        for (auto& sub_worker : sub_workers_) {
+            Status s = sub_worker->init(sub_option[sub_worker->name()]);
+            if (!s.ok()) {
+                return s;
+            }
+        }
+        return Status::OK();
+    }
+
     virtual Status execute(BaseContext& ctx) = 0;
 
     template<class ...T> Status run(T ...inouts);
@@ -117,6 +133,8 @@ private:
     std::vector<std::shared_ptr<BaseDataWrapper>> inputs_;
     std::vector<std::shared_ptr<BaseDataWrapper>> outputs_;
 
+    // 子模块
+    std::vector<std::shared_ptr<BaseNode>> sub_workers_;
 };
 
 

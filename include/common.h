@@ -30,6 +30,12 @@ class NodeInputWrppper;
 template<class T>
 class NodeOutputWrppper;
 
+template<class T>
+class InputData;
+
+template<class T>
+class OutputData;
+
 
 class BaseContext {
 public:
@@ -95,6 +101,17 @@ public:
     }
 
     template <class T>
+    InputData<T>& get(NodeInputWrppper<InputData<T>>& wrapper) {
+        if (input_map2_.count(wrapper.fullname()) == 0) {
+            std::string output_name = input_map_.at(wrapper.fullname());
+            OutputData<T>& out = get_output<OutputData<T>>(output_name);
+            input_map2_[wrapper.fullname()] = InputData<T>(out);
+        }
+        std::any& data = input_map2_[wrapper.fullname()];
+        return std::any_cast<InputData<T>&>(data);
+    }
+
+    template <class T>
     T& get(NodeInputWrppper<T>& wrapper) {
         return get_input<T>(wrapper.fullname());
     }
@@ -148,20 +165,43 @@ public:
     // for notify
     bthread::ConditionVariable cond_;
 
-    
-
 private:
     std::unordered_map<std::string, std::string> input_map_;
     std::unordered_map<std::string, std::any> output_map_;
+    std::unordered_map<std::string, std::any> input_map2_;
 
     std::unordered_map<BaseNode*, bthread_t> bthread_id_map_;
-
-    
 
     // for trace
     std::string unique_id_;
     json trace_buf_;
     bool enable_trace_ = false;
+
+/*
+    // 理想的数据存储方案:
+    std::vector<std::any> data_; // 初始化时先确定容量，然后一次性分配; 每一个输入、输出、data、都分配一个 ID
+    // 获取某个字段时 
+    std::any& get_any(int id) {
+        return data_[id];
+    }
+    template<class T>
+    T& get(int id) {
+        return std::any_cast<T&>(data_[id]);
+    }
+
+    template<class T>
+    Input<T> get(InputDescriptor<T>& descriptor) {
+        return Input<T>(get(descriptor.id()));
+    }
+    template<class T>
+    Output<T> get(OutputDescriptor<T>& descriptor) {
+        return Output<T>(get(id));
+    }
+    template<class T>
+    Data<T> get(DataDescriptor<T>& descriptor) {
+        return Data<T>(get(id));
+    }
+*/
 };
 
 }

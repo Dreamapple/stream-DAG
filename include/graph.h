@@ -87,9 +87,29 @@ private:
     Condition condition_;
 };
 
+
+class BaseConvertor {
+public:
+    virtual std::any convert(const std::any& data) = 0;
+};
+
+template<class from, class to>
+class Convertor : public BaseConvertor {
+public:
+    Convertor(std::function<to(from)> func) : func_(func) {}
+    std::any convert(const std::any& data) override {
+        from& from_data = std::any_cast<from&>(data);
+        to to_data = func_(from_data);
+        return to_data;
+    }
+private:
+    std::function<to(from)> func_;
+};
+
 class StreamGraph {
 public:
     StreamGraph() = default;
+    StreamGraph(json& option) : option_(option) {}
     ~StreamGraph() {
         for (auto node : nodes_) {
             delete node;
@@ -151,6 +171,20 @@ public:
         static_assert(std::is_same<T1, T2>::value, "type must be same");
         edge_[out.fullname()] = in.fullname();
     }
+
+    template <class T1, class T2>
+    void add_edge(NodeOutputWrppper<OutputData<T1>>& out, NodeInputWrppper<InputData<T2>>& in) {
+        static_assert(std::is_same<T1, T2>::value, "type must be same");
+        edge_[out.fullname()] = in.fullname();
+    }
+
+    // template <class T1, class T2>
+    // void add_edge(NodeOutputWrppper<T1>& out, NodeInputWrppper<T2>& in, std::function<T2(T1)> convertor) {
+    //     edge_[out.fullname()] = DataConvertor{
+    //         .from_name = in.fullname();
+    //         .convertor = convertor;
+    //     };
+    // }
 
     template <class T1, class T2>
     void add_edge_dep(NodeInputWrppper<T2>& in, NodeOutputWrppper<T1>& out) {
@@ -236,6 +270,9 @@ private:
 
     // 节点依赖
     std::vector<DependentInfo> depends_;
+
+    // 图配置
+    json option_;
 };
 
 
