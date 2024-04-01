@@ -238,6 +238,16 @@ public:
         cond_.notify_one();
     }
 
+    void set_auto_close(bool enable=true) {
+        enable_auto_close_ = enable;
+    }
+
+    void auto_close() {
+        if (enable_auto_close_) {
+            half_close();
+        }
+    }
+
     bool is_half_close() {
         std::unique_lock<bthread::Mutex> lock_(mutex_);
         return half_closed_;
@@ -253,6 +263,7 @@ protected:
 
     bool half_closed_ = false;
     bool closed_ = false;
+    bool enable_auto_close_ = true;
 
     bthread::ConditionVariable cond_;
     bthread::Mutex mutex_;

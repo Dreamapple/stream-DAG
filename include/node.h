@@ -36,7 +36,7 @@ public:
 
     void half_close(std::any &data) {
         auto stream = std::any_cast<std::shared_ptr<T>>(data);
-        stream->half_close();
+        stream->auto_close();
     }
 };
 

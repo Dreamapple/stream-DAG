@@ -47,7 +47,9 @@ public:
 
 class StreamHttpReader : public brpc::ProgressiveReader {
 public:
-    StreamHttpReader(Stream<std::string>& body) : body_(body) {}
+    StreamHttpReader(Stream<std::string>& body) : body_(body) {
+        body.set_auto_close(false);
+    }
 
     butil::Status OnReadOnePart (const void* data, size_t length) override {
         return body_.append(std::string((const char*)data, length));
@@ -78,7 +80,7 @@ public:
         return (0 == chann_.Init(host.c_str(), lb.c_str(), &opt)) ? Status::OK() : Status(-1, "init channnel failed");
     }
 
-    Status run(Stream<HttpRequest>& request_, Stream<HttpResponse>& response_, Stream<std::string>& body) {
+    Status run(Stream<HttpRequest>& request_, Stream<HttpResponse>& response_, Stream<std::string>& stream_body) {
         // 这里面没有必要写异步任务
         // 直接同步执行, 阻塞时 brpc 会自动调度到其它bthread
         // 
@@ -88,7 +90,7 @@ public:
 
         request = &requestdata;
 
-        brpc::HttpMethod method;
+        brpc::HttpMethod method = brpc::HTTP_METHOD_GET;
         if (request->method == "GET") {
             method = brpc::HTTP_METHOD_GET; 
         } else if (request->method == "POST") {
@@ -127,7 +129,7 @@ public:
         } else {
             cntl.response_will_be_read_progressively();
             chann_.CallMethod(nullptr, &cntl, nullptr, nullptr, nullptr);
-            cntl.ReadProgressiveAttachmentBy(new StreamHttpReader(body));
+            cntl.ReadProgressiveAttachmentBy(new StreamHttpReader(stream_body));
         }
 
         HttpResponse responsedata, *response;
@@ -150,7 +152,7 @@ public:
     DECLARE_PARAMS (
         INPUT(request_, Stream<HttpRequest>),
         OUTPUT(response_, Stream<HttpResponse>),
-        OUTPUT(body, Stream<std::string>),
+        OUTPUT(stream_body, Stream<std::string>),
     );
 
 private:
