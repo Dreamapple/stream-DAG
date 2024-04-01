@@ -69,6 +69,8 @@ int main(int argc, char* argv[])
     SinkerNode* sinker = g.add_node<SinkerNode>("sinker");
 
     http->init(option);
+// bing_search.search(query, result)
+    // 
 
     g.add_edge(source->src, http->request_);
     g.add_edge(http->response_, sinker->result);
