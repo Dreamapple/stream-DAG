@@ -284,14 +284,8 @@ public:
     }
 
     template<class T>
-    T& get(NodeCalleeWrapper<T>& wrapper) {
-        auto it = data_map_.find(wrapper.fullname());
-        if (it != data_map_.end()) {
-            return *std::any_cast<std::shared_ptr<T>>(it->second);
-        }
-        auto ptr = std::make_shared<T>(ctx_, wrapper.fullname(), typeid(T).name());
-        data_map_[wrapper.fullname()] = ptr;
-        return *ptr;
+    Node<T> get(NodeCalleeWrapper<T>& wrapper) {
+        return ctx_.get(wrapper);
     }
 
 public:
