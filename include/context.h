@@ -31,11 +31,16 @@ template<class T>
 class NodeOutputWrppper;
 
 template<class T>
+class NodeCalleeWrapper;
+
+template<class T>
 class InputData;
 
 template<class T>
 class OutputData;
 
+template<class T>
+class Node;
 
 class BaseContext {
 public:
@@ -43,7 +48,17 @@ public:
     BaseContext(const std::string& unique_id) : unique_id_(unique_id) {
         trace_buf_["unique_id"] = unique_id;
     }
-    virtual ~BaseContext() = default;
+
+    // TODO!
+    // virtual ~BaseContext() {
+    //     // if (enable_trace_) {
+    //     //     std::ofstream ofs(unique_id_ + ".json");
+    //     //     ofs << trace_buf_.dump(4);
+    //     // }
+    //     for (auto [name, node] : node_map_) {
+    //         delete node;
+    //     }
+    // }
 
     template <class T>
     void init_data(const std::string& name, T&& value) {
@@ -52,6 +67,7 @@ public:
     }
 
     void init_node(const std::string& name, BaseNode* node) {
+        node_map_[name] = node;
         trace_buf_["nodes"][name] = json::array();
     }
 
@@ -121,6 +137,14 @@ public:
         return get_output<T>(wrapper.fullname());
     }
 
+    template <class T>
+    Node<T> get(NodeCalleeWrapper<T>& wrapper) {
+        auto fullname = wrapper.fullname();
+        BaseNode* node = node_map_[fullname];
+        T* ptr = dynamic_cast<T*>(node);
+        return Node<T>(*ptr, *this);
+    }
+
     void enable_trace(bool enable=true) {
         enable_trace_ = enable;
     }
@@ -169,6 +193,7 @@ private:
     std::unordered_map<std::string, std::string> input_map_;
     std::unordered_map<std::string, std::any> output_map_;
     std::unordered_map<std::string, std::any> input_map2_;
+    std::unordered_map<std::string, BaseNode*> node_map_;
 
     std::unordered_map<BaseNode*, bthread_t> bthread_id_map_;
 
@@ -176,32 +201,6 @@ private:
     std::string unique_id_;
     json trace_buf_;
     bool enable_trace_ = false;
-
-/*
-    // 理想的数据存储方案:
-    std::vector<std::any> data_; // 初始化时先确定容量，然后一次性分配; 每一个输入、输出、data、都分配一个 ID
-    // 获取某个字段时 
-    std::any& get_any(int id) {
-        return data_[id];
-    }
-    template<class T>
-    T& get(int id) {
-        return std::any_cast<T&>(data_[id]);
-    }
-
-    template<class T>
-    Input<T> get(InputDescriptor<T>& descriptor) {
-        return Input<T>(get(descriptor.id()));
-    }
-    template<class T>
-    Output<T> get(OutputDescriptor<T>& descriptor) {
-        return Output<T>(get(id));
-    }
-    template<class T>
-    Data<T> get(DataDescriptor<T>& descriptor) {
-        return Data<T>(get(id));
-    }
-*/
 };
 
 }

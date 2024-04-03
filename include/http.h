@@ -68,7 +68,7 @@ private:
 class HttpNode : public BaseNode {
 public:
     Status init(json& option) {
-        std::string host = option.value("host", "");
+        std::string host = option.value("host", "https://api.bing.microsoft.com");
         std::string lb = option.value("lb", "");
         int timeout_ms = option.value("timeout_ms", 20000);
         int max_retry = option.value("max_retry", 3);

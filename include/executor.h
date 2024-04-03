@@ -139,7 +139,7 @@ public:
             int rc = ctx.cond_.wait_for(lock_, 1000000);
             if (rc == ETIMEDOUT) {
                 timeout_cnt += 1;
-                if (timeout_cnt >= 10) {
+                if (timeout_cnt >= 100) {
                     bool dumped = ctx.dump("running.json");
                     if (dumped) {
                         return Status(-1, "Timeout, dump to running.json");

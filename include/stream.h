@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "context.h"
 #include "to_json.h"
 #include "bthread/butex.h"
 #include "bthread/condition_variable.h"
@@ -308,8 +308,12 @@ public:
         while (buf_.size() <= top_ && !closed_ && !half_closed_) {
             trace("PipeStreamBase::read wait", json());
             int rc = cond_.wait_for(lock_, 1000000);
+            if (rc == ETIMEDOUT) {
+                trace("PipeStreamBase::read timeout, continue wait", json());
+                continue;
+            }
             if (rc != 0) {
-                return Status(-1, "PipeStreamBase::read wait");
+                return Status(-1, "PipeStreamBase::read wait %s", berror(rc));
             }
             trace("PipeStreamBase::read wake", json({{"rc", rc}}));
         }
