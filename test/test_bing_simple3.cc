@@ -7,7 +7,9 @@ using namespace stream_dag;
 
 class TestNode : public BaseNode {
 public:
-    Status run(Node<BingNode> bing_node) {
+    DECLARE_PARAMS (
+        DEPEND(bing_node, BingNode),
+    ) {
         BingRequest req { 
             .query = "hello+world",
         };
@@ -16,13 +18,16 @@ public:
         printf("%s\n", rsp.body.dump().c_str());
         return Status::OK();
     }
-
-    DECLARE_PARAMS (
-        DEPEND(bing_node, BingNode),
-    );
 };
 REGISTER_CLASS(TestNode);
 
+class Context : public BaseContext {
+public:
+    Context(BingRequest& req, BingResponse& rsp) {
+        graph_ = new Graph();
+
+    }
+};
 
 int main(int argc, char* argv[])
 {
@@ -36,11 +41,11 @@ int main(int argc, char* argv[])
 
     BthreadExecutor executor;
 
-    BaseContext ctx;
+    BaseContext ctx(&g, "test");
     ctx.enable_trace(true);
 
 
-    auto status = executor.run(g, ctx);
+    auto status = executor.run(ctx);
     if (!status.ok()) {
         printf("run err: %s\n", status.error_cstr());
         return -1;

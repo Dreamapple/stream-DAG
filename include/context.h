@@ -21,7 +21,7 @@ using Status = butil::Status;
 
 class BaseNode;
 class BaseContext;
-
+class StreamGraph;
 
 
 template<class T>
@@ -45,8 +45,14 @@ class Node;
 class BaseContext {
 public:
     BaseContext() = default;
+    BaseContext(StreamGraph* g, const std::string& unique_id) : graph_(g), unique_id_(unique_id) {
+    }
     BaseContext(const std::string& unique_id) : unique_id_(unique_id) {
         trace_buf_["unique_id"] = unique_id;
+    }
+
+    StreamGraph* graph() {
+        return graph_;
     }
 
     // TODO!
@@ -201,6 +207,8 @@ private:
     std::string unique_id_;
     json trace_buf_;
     bool enable_trace_ = false;
+
+    StreamGraph* graph_ = nullptr;
 };
 
 }

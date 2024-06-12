@@ -83,6 +83,10 @@ class BthreadExecutor {
 public:
     BthreadExecutor() = default;
     BthreadExecutor(const std::string& name) : name_(name) {}
+    Status run(BaseContext& ctx) {
+        return run(*ctx.graph(), ctx);
+    }
+
     Status run(StreamGraph& g, BaseContext& ctx) {
         std::unordered_map<std::string, RunningNodeInfo> nodes_map_;
 
